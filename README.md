@@ -9,6 +9,7 @@ Ils s'appuient sur le moteur officiel [community-scripts/core](https://github.co
 | App | Commande (sur le nœud Proxmox) |
 |---|---|
 | [Logr](https://logr.beer) — suivi de dégustation de bières, [fork](https://github.com/clementlgl/logr-app) avec scan de code-barres + Open Food Facts | `bash -c "$(curl -fsSL https://raw.githubusercontent.com/clementlgl/proxmox-scripts/main/ct/logr.sh)"` |
+| [Runlog](https://github.com/clementlgl/runlog) — carnet de course : synchro Mi Fitness, analyse des sorties, détection du fractionné | `bash -c "$(curl -fsSL https://raw.githubusercontent.com/clementlgl/proxmox-scripts/main/ct/runlog.sh)"` |
 
 ## Logr
 
@@ -23,6 +24,20 @@ Dépôt et branche installés : `clementlgl/logr-app`, branche `feat/barcode-sca
 Mise à jour : commande `update` dans le CT. Suit la branche installée, sauvegarde la base dans `/opt/logr-data/backups` (5 dernières gardées), redéploie, rebuild, applique les migrations.
 
 Derrière un reverse proxy HTTPS : `TRUSTED_PROXIES=*` est déjà dans `/opt/logr-data/.env` (à restreindre à l'IP du proxy), mettre `APP_URL=https://…` puis `systemctl restart php8.4-fpm logr-queue logr-scheduler`. La caméra (scan) exige HTTPS.
+
+## Runlog
+
+- Debian 13, unprivileged, 2 vCPU / 2 Go RAM / 6 Go disque (la RAM sert au build du frontend à l'install et aux mises à jour).
+- Install native, sans Docker : backend FastAPI + DuckDB (Python 3.13 de Debian, dépendances via `uv`), frontend SvelteKit compilé avec Node 22 (`node_modules` supprimé ensuite).
+- Code : `/opt/runlog` (checkout git). Données : `/opt/runlog-data` — `data/` (exports + `runs.duckdb`), `.mifit/session.json` (session Xiaomi), `runlog.env` (réglages), `backups/`.
+- Services, sous l'utilisateur `runlog` : `runlog-backend` (API sur `127.0.0.1:8000`, interne) et `runlog-frontend` (app sur le port `80`).
+- Premier accès : `http://<ip>`, panneau **Synchroniser** → **Se connecter à Xiaomi** (la page de connexion Xiaomi s'ouvre ; se connecter et valider), puis lancer une synchro.
+
+Dépôt et branche installés : `clementlgl/runlog`, branche `main` (`RUNLOG_REPO` / `RUNLOG_BRANCH` en tête de `install/runlog-install.sh`). Le dépôt doit être public : le CT le clone sans identifiants.
+
+Mise à jour : commande `update` dans le CT. Refuse de tourner pendant une synchro, sauvegarde `runs.duckdb` dans `/opt/runlog-data/backups` (5 dernières gardées), redéploie, rebuild.
+
+Derrière un reverse proxy HTTPS : dans `/opt/runlog-data/runlog.env`, mettre `ORIGIN=https://runlog.<domaine>` (URL exacte tapée dans le navigateur, sinon la synchro est refusée), puis `systemctl restart runlog-frontend`. `MIFIT_REGION` (défaut `de`, Europe) y fixe la région du compte Xiaomi.
 
 ## Licence
 
